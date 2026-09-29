@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Clasificador de consultas con IA</title>
+  <style>
+    :root { --bg:#0f1115; --card:#181b22; --line:#2a2f3a; --text:#e8eaf0; --muted:#9aa3b2; --accent:#a3e635; --warn:#fbbf24; --bad:#f87171; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--text); }
+    main { max-width: 820px; margin: 0 auto; padding: 32px 16px; }
+    h1 { font-size: 1.6rem; margin: 0 0 4px; }
+    p.sub { color: var(--muted); margin: 0 0 24px; }
+    .card { background: var(--card); border:1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+    textarea { width:100%; min-height:110px; background:#0b0d11; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:10px; font: inherit; }
+    button { background: var(--accent); color:#111; border:0; border-radius:8px; padding:10px 16px; font-weight:600; cursor:pointer; }
+    button.sec { background: transparent; color: var(--text); border:1px solid var(--line); font-weight:500; margin: 0 6px 6px 0; }
+    .row { display:flex; flex-wrap:wrap; gap:6px; margin: 10px 0; }
+    .badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:.85rem; border:1px solid var(--line); margin-right:6px; }
+    .alta { color: var(--bad); border-color: var(--bad); } .media { color: var(--warn); border-color: var(--warn); } .baja { color: var(--accent); border-color: var(--accent); }
+    code { background:#0b0d11; padding:2px 6px; border-radius:6px; }
+    .flow { color: var(--muted); font-size:.9rem; }
+    #modo { font-size:.85rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Clasificador de consultas con IA</h1>
+  <p class="sub">Webhook → anonimización de datos personales → IA por API → validación → enrutado al departamento. <span id="modo"></span></p>
+
+  <div class="card">
+    <strong>Ejemplos rápidos</strong>
+    <div class="row" id="ejemplos"></div>
+    <textarea id="mensaje" placeholder="Escribe la consulta de un cliente..."></textarea>
+    <div style="margin-top:10px"><button id="enviar">Enviar al webhook</button></div>
+  </div>
+
+  <div class="card" id="resultado" hidden></div>
+  <p class="flow">Demo de Juan Francisco Morales Plaza · Node.js + Express + API de Claude</p>
+</main>
+
+<script>
+  const EJEMPLOS = [
+    "Hola, soy Ana López (ana.lopez@gmail.com, DNI 12345678Z). Un empleado ha denunciado acoso y necesito saber qué hacer hoy mismo.",
+    "Buenas, me ha llegado la factura de septiembre duplicada, ¿me podéis revisar el cobro? Mi teléfono es 612 345 678.",
+    "Creemos que hemos sufrido una brecha de datos: alguien ha accedido a la base de datos de clientes esta mañana.",
+    "¿Qué cookies necesito en mi web para cumplir el RGPD? No es urgente.",
+    "No puedo entrar al portal de clientes, me dice que la contraseña es incorrecta."
+  ];
+  const cont = document.getElementById("ejemplos");
+  EJEMPLOS.forEach((t, i) => {
+    const b = document.createElement("button");
+    b.className = "sec"; b.textContent = "Ejemplo " + (i + 1);
+    b.onclick = () => { document.getElementById("mensaje").value = t; };
+    cont.appendChild(b);
+  });
+
+  fetch("/api/estado").then(r => r.json()).then(d => {
+    document.getElementById("modo").textContent = d.modo === "ia" ? "(Modo: IA real)" : "(Modo: simulado, sin API key)";
+  });
+
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
+
+  document.getElementById("enviar").onclick = async () => {
+    const mensaje = document.getElementById("mensaje").value;
+    const out = document.getElementById("resultado");
+    out.hidden = false; out.textContent = "Clasificando…";
+    const r = await fetch("/webhook/consulta", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mensaje })
+    });
+    const d = await r.json();
+    if (!r.ok) { out.textContent = d.error || "Error"; return; }
+    const c = d.clasificacion;
+    out.innerHTML = `
+      <p><span class="badge">${esc(c.categoria)}</span><span class="badge ${esc(c.urgencia)}">urgencia ${esc(c.urgencia)}</span>
+      ${c.requiere_humano ? '<span class="badge media">revisión humana</span>' : ''}<span class="badge">modo ${esc(c.modo)}</span></p>
+      <p><strong>Resumen:</strong> ${esc(c.resumen)}</p>
+      <p><strong>Acción:</strong> ${esc(d.accion)}</p>
+      <p><strong>Texto que ve la IA</strong> (${d.datosProtegidos} datos personales protegidos):<br><code>${esc(d.textoEnviadoALaIA)}</code></p>`;
+  };
+</script>
+</body>
+</html>
