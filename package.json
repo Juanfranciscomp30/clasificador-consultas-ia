@@ -1,0 +1,20 @@
+{
+  "name": "clasificador-consultas-ia",
+  "version": "1.0.0",
+  "description": "Demo: webhook que recibe consultas de clientes, anonimiza datos personales y las clasifica con un modelo de IA por API (Claude).",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "author": "Juan Francisco Morales Plaza",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2"
+  }
+}
